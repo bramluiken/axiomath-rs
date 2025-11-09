@@ -23,6 +23,16 @@
 //! let m2 = Mat2::<f64>::from_rows([[1.0, 2.0], [3.0, 4.0]]);
 //! let product = matrix::multiply(&m1, &m2);
 //! let det = matrix::determinant(&m2);
+//!
+//! // Linear algebra
+//! let a = Mat3::<f64>::from_rows([
+//!     [1.0, 2.0, 3.0],
+//!     [0.0, 1.0, 4.0],
+//!     [5.0, 6.0, 0.0],
+//! ]);
+//! let b = vec3(1.0, 2.0, 3.0);
+//! let x = linear_algebra::solve(&a, &b).unwrap();
+//! let a_inv = linear_algebra::invert(&a).unwrap();
 //! ```
 
 // Core traits
@@ -75,6 +85,65 @@ pub mod matrix {
         is_symmetric, is_diagonal, is_upper_triangular, is_lower_triangular,
         is_singular, is_invertible,
     };
+}
+
+// Linear algebra operations
+pub mod linear_algebra {
+    //! Linear algebra operations namespace.
+    //!
+    //! This submodule provides decompositions, solvers, and vector space operations.
+
+    // Error type
+    pub use crate::linear_algebra::LinearAlgebraError;
+
+    // Decompositions
+    pub mod decomposition {
+        //! Matrix decomposition algorithms.
+        pub use crate::linear_algebra::decomposition::{
+            lu_decompose, qr_decompose, qr_decompose_householder,
+            cholesky::{cholesky_decompose, cholesky_solve},
+            svd::{svd, pseudoinverse},
+            eigen::{eigenvalues, eigenpairs, power_iteration},
+        };
+    }
+
+    // System solvers
+    pub mod systems {
+        //! Linear system solvers and matrix inversion.
+        pub use crate::linear_algebra::systems::{
+            // Triangular systems
+            triangular::{solve_lower_triangular, solve_upper_triangular},
+            // Direct solver
+            direct::{solve_linear_system, gaussian_elimination},
+            // Matrix inversion
+            inverse::invert,
+            // Iterative solvers
+            iterative::{jacobi, gauss_seidel, conjugate_gradient},
+        };
+    }
+
+    // Vector spaces
+    pub mod spaces {
+        //! Vector space and subspace operations.
+        pub use crate::linear_algebra::spaces::{
+            // Basis operations
+            basis::{gram_schmidt, is_linearly_independent, span_dimension, find_basis},
+            // Subspace operations
+            subspaces::{column_space, row_space, null_space, left_null_space},
+        };
+    }
+
+    // Row operations and RREF
+    pub mod rref {
+        //! Reduced Row Echelon Form operations.
+        pub use crate::linear_algebra::rref::{rref, rref_with_pivots};
+        pub use crate::linear_algebra::row_operations::{swap_rows, scale_row, add_scaled_row};
+    }
+
+    // Flat re-exports for common operations
+    pub use crate::linear_algebra::decomposition::{lu_decompose, qr_decompose, svd::svd};
+    pub use crate::linear_algebra::systems::direct::solve_linear_system as solve;
+    pub use crate::linear_algebra::systems::inverse::invert;
 }
 
 // Re-export num-traits for convenience
