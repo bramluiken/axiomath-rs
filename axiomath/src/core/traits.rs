@@ -161,7 +161,7 @@ pub trait Real: Scalar + Signed + PartialOrd {
 /// assert!(x.is_finite());
 /// assert!(!x.is_nan());
 /// ```
-pub trait Float: Real + NumFloat {
+pub trait Float: Real {
     /// Returns the machine epsilon for this float type.
     ///
     /// This is the difference between 1.0 and the next larger representable number.

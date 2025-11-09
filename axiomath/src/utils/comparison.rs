@@ -4,7 +4,7 @@
 //! This module provides functions for approximate equality testing.
 
 use crate::core::Float;
-use num_traits::{Float as NumFloat, Zero as NumZero};
+use num_traits::Zero as NumZero;
 
 /// Compare two floating-point values for approximate equality.
 ///
@@ -35,9 +35,9 @@ use num_traits::{Float as NumFloat, Zero as NumZero};
 /// assert!(!approximately_equal(a, b, 1e-5, 1e-5));
 /// ```
 pub fn approximately_equal<T: Float>(a: T, b: T, abs_tol: T, rel_tol: T) -> bool {
-    let diff = NumFloat::abs(a - b);
-    let max_val = NumFloat::max(NumFloat::abs(a), NumFloat::abs(b));
-    diff <= NumFloat::max(abs_tol, rel_tol * max_val)
+    let diff = (a - b).abs();
+    let max_val = a.abs().max(b.abs());
+    diff <= abs_tol.max(rel_tol * max_val)
 }
 
 /// Compare two floating-point values using absolute tolerance only.
@@ -52,7 +52,7 @@ pub fn approximately_equal<T: Float>(a: T, b: T, abs_tol: T, rel_tol: T) -> bool
 /// ```
 #[inline]
 pub fn abs_diff_eq<T: Float>(a: T, b: T, tolerance: T) -> bool {
-    NumFloat::abs(a - b) <= tolerance
+    (a - b).abs() <= tolerance
 }
 
 /// Compare two floating-point values using relative tolerance only.
@@ -67,8 +67,8 @@ pub fn abs_diff_eq<T: Float>(a: T, b: T, tolerance: T) -> bool {
 /// ```
 #[inline]
 pub fn rel_diff_eq<T: Float>(a: T, b: T, tolerance: T) -> bool {
-    let diff = NumFloat::abs(a - b);
-    let max_val = NumFloat::max(NumFloat::abs(a), NumFloat::abs(b));
+    let diff = (a - b).abs();
+    let max_val = a.abs().max(b.abs());
     diff <= tolerance * max_val
 }
 
@@ -90,7 +90,7 @@ pub fn rel_diff_eq<T: Float>(a: T, b: T, tolerance: T) -> bool {
 /// ```
 #[inline]
 pub fn absolute_error<T: Float>(approximate: T, exact: T) -> T {
-    NumFloat::abs(approximate - exact)
+    (approximate - exact).abs()
 }
 
 /// Calculate the relative error between an approximate and exact value.
@@ -115,9 +115,9 @@ pub fn absolute_error<T: Float>(approximate: T, exact: T) -> T {
 #[inline]
 pub fn relative_error<T: Float>(approximate: T, exact: T) -> T {
     if NumZero::is_zero(&exact) {
-        return NumFloat::nan();
+        return T::nan();
     }
-    NumFloat::abs(approximate - exact) / NumFloat::abs(exact)
+    (approximate - exact).abs() / exact.abs()
 }
 
 #[cfg(test)]
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_relative_error() {
-        let error = relative_error(100.0, 99.0);
-        assert!((error - (1.0 / 99.0)).abs() < 1e-10);
+        let error = relative_error(100.0_f64, 99.0_f64);
+        assert!((error - (1.0_f64 / 99.0_f64)).abs() < 1e-10);
     }
 }
