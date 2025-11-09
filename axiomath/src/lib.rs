@@ -42,7 +42,8 @@
 //! - [`utils`]: Utility functions and constants
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "simd", feature(portable_simd))]
+// SIMD support will be added in Phase 15
+// #![cfg_attr(feature = "simd", feature(portable_simd))]
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
