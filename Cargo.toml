@@ -1,0 +1,47 @@
+[workspace]
+members = ["axiomath"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Bram Luiken"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bramluiken/axiomath-rs"
+keywords = ["math", "mathematics", "linear-algebra", "statistics", "thermodynamics"]
+categories = ["mathematics", "science", "no-std"]
+
+[workspace.dependencies]
+# Core numeric traits
+num-traits = { version = "0.2", default-features = false }
+
+# No-std math functions
+libm = "0.2"
+
+# Testing
+approx = "0.5"
+proptest = "1.5"
+quickcheck = "1.0"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Optional features
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+rayon = "1.10"
+rand = "0.8"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 16
+
+[profile.bench]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
