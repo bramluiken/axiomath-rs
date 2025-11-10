@@ -858,6 +858,40 @@ impl<T, const N: usize> Vector<T, N> {
 
 ## Pull Request Process
 
+### Before Starting Implementation
+
+**⚠️ CRITICAL: Ensure Dependent APIs are Established**
+
+Before implementing any feature, verify that all dependent APIs are fully defined and stable:
+
+**✅ DO:**
+- Check that all dependencies listed in the ROADMAP are marked complete
+- Verify that dependent modules have stable, documented APIs
+- Ensure that dependent types, functions, and traits are finalized
+- Wait for API reviews to complete before starting implementation
+
+**❌ DON'T:**
+- Start implementing features that depend on undefined APIs
+- Make assumptions about how dependent APIs will work
+- Begin work on phases before their dependencies are complete
+- Create temporary/placeholder APIs expecting them to change later
+
+**Example:**
+```rust
+// ❌ BAD: Starting Phase 7 (Calculus) before Phase 3 (Vector Math) is complete
+// Don't implement gradient() if vector operations aren't finalized
+
+// ✅ GOOD: Wait for Vector API to stabilize first
+// Phase 3 complete → Vector<T, N> API is stable
+// Now safe to implement gradient() using Vec3, dot_product, etc.
+```
+
+This ensures:
+- No breaking changes when dependencies evolve
+- Consistent API design across modules
+- Reduced refactoring and rework
+- Smooth integration between components
+
 ### Before Submitting
 
 1. **Run tests**: `cargo test --all-features`
