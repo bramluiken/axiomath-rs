@@ -197,6 +197,69 @@ pub mod calculus {
     pub use crate::calculus::ode::{runge_kutta_4, adaptive_rk45};
 }
 
+// Complex numbers
+pub mod complex {
+    //! Complex number operations namespace.
+    //!
+    //! This submodule provides complex number arithmetic, polar form operations,
+    //! and complex-valued functions.
+
+    // Type
+    pub use crate::complex::Complex;
+
+    // Arithmetic
+    pub use crate::complex::{
+        add, subtract, multiply, divide, negate, conjugate, reciprocal,
+    };
+
+    // Polar form
+    pub use crate::complex::{
+        magnitude, argument, to_polar, from_polar, multiply_polar,
+    };
+
+    // Complex functions
+    pub use crate::complex::{
+        complex_exp, complex_ln, complex_sqrt, complex_pow, complex_sin, complex_cos,
+    };
+}
+
+// Polynomials
+pub mod polynomial {
+    //! Polynomial operations namespace.
+    //!
+    //! This submodule provides polynomial arithmetic, evaluation, calculus operations,
+    //! and root-finding algorithms.
+
+    // Type
+    pub use crate::polynomial::Polynomial;
+
+    // Arithmetic
+    pub use crate::polynomial::{
+        add, subtract, multiply, negate,
+    };
+
+    // Evaluation
+    pub use crate::polynomial::{
+        evaluate, evaluate_complex,
+    };
+
+    // Calculus
+    pub use crate::polynomial::{
+        derivative, integral, definite_integral,
+    };
+
+    // Properties
+    pub use crate::polynomial::{
+        discriminant,
+    };
+
+    // Root finding
+    pub use crate::polynomial::{
+        linear_root, quadratic_roots, cubic_root,
+        newton_raphson_root, durand_kerner,
+    };
+}
+
 // Statistics operations
 pub mod statistics {
     //! Statistics and probability distributions namespace.
