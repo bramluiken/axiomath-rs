@@ -197,5 +197,72 @@ pub mod calculus {
     pub use crate::calculus::ode::{runge_kutta_4, adaptive_rk45};
 }
 
+// Statistics operations
+pub mod statistics {
+    //! Statistics and probability distributions namespace.
+    //!
+    //! This submodule provides descriptive statistics and probability distributions.
+
+    // Error type
+    pub use crate::statistics::StatisticsError;
+
+    // Descriptive statistics
+    pub mod descriptive {
+        //! Descriptive statistics functions.
+        pub use crate::statistics::descriptive::{
+            // Central tendency
+            mean, weighted_mean, median, mode, geometric_mean,
+            // Dispersion
+            variance, standard_deviation, mean_absolute_deviation, range, coefficient_of_variation,
+            // Shape
+            skewness, kurtosis,
+            // Order statistics
+            percentile, quantile, quartiles, interquartile_range, five_number_summary,
+            // Multivariate
+            covariance, correlation,
+        };
+    }
+
+    // Probability distributions
+    pub mod distributions {
+        //! Probability distribution functions.
+
+        // Discrete distributions
+        pub mod discrete {
+            //! Discrete probability distributions.
+            pub use crate::statistics::distributions::discrete::{
+                bernoulli_pmf, bernoulli_cdf, bernoulli_mean, bernoulli_variance,
+                binomial_pmf, binomial_cdf, binomial_mean, binomial_variance,
+                poisson_pmf, poisson_cdf, poisson_mean, poisson_variance,
+                geometric_pmf, geometric_cdf, geometric_mean, geometric_variance,
+            };
+        }
+
+        // Continuous distributions
+        pub mod continuous {
+            //! Continuous probability distributions.
+            pub use crate::statistics::distributions::continuous::{
+                normal_pdf, normal_cdf, normal_mean, normal_variance,
+                uniform_pdf, uniform_cdf, uniform_mean, uniform_variance,
+                exponential_pdf, exponential_cdf, exponential_mean, exponential_variance,
+                gamma_pdf, gamma_cdf, gamma_mean, gamma_variance,
+                beta_pdf, beta_cdf, beta_mean, beta_variance,
+                chi_squared_pdf, chi_squared_cdf, chi_squared_mean, chi_squared_variance,
+                students_t_pdf, students_t_cdf, students_t_mean, students_t_variance,
+                f_pdf, f_cdf, f_mean, f_variance,
+            };
+        }
+
+        // Flat re-exports for common distributions
+        pub use crate::statistics::distributions::{
+            binomial_pmf, poisson_pmf, normal_pdf, normal_cdf, exponential_pdf,
+        };
+    }
+
+    // Flat re-exports for common operations
+    pub use crate::statistics::descriptive::{mean, standard_deviation, variance, correlation};
+    pub use crate::statistics::distributions::{binomial_pmf, normal_pdf, normal_cdf};
+}
+
 // Re-export num-traits for convenience
 pub use num_traits::{One, Zero};
