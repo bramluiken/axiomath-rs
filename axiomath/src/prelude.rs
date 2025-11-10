@@ -33,6 +33,15 @@
 //! let b = vec3(1.0, 2.0, 3.0);
 //! let x = linear_algebra::solve(&a, &b).unwrap();
 //! let a_inv = linear_algebra::invert(&a).unwrap();
+//!
+//! // Calculus operations
+//! let f = |x: f64| x.sin();
+//! let derivative = calculus::central_difference(f, 0.0, 1e-5);
+//! let integral = calculus::simpsons_rule(f, 0.0, std::f64::consts::PI, 100);
+//!
+//! // ODE solving
+//! let ode = |_t: f64, y: f64| y;
+//! let solution = calculus::runge_kutta_4(ode, 1.0, (0.0, 1.0), 0.01);
 //! ```
 
 // Core traits
@@ -144,6 +153,48 @@ pub mod linear_algebra {
     pub use crate::linear_algebra::decomposition::{lu_decompose, qr_decompose, svd::svd};
     pub use crate::linear_algebra::systems::direct::solve_linear_system as solve;
     pub use crate::linear_algebra::systems::inverse::invert;
+}
+
+// Calculus operations
+pub mod calculus {
+    //! Calculus operations namespace.
+    //!
+    //! This submodule provides numerical differentiation, integration, and ODE solvers.
+
+    // Differentiation
+    pub mod differentiation {
+        //! Numerical differentiation methods.
+        pub use crate::calculus::differentiation::{
+            forward_difference, backward_difference, central_difference,
+            five_point_stencil, derivative_at_point, second_derivative, nth_derivative,
+        };
+    }
+
+    // Integration
+    pub mod integration {
+        //! Numerical integration (quadrature) methods.
+        pub use crate::calculus::integration::{
+            // Newton-Cotes
+            trapezoidal_rule, simpsons_rule, simpsons_3_8_rule,
+            // Adaptive
+            adaptive_simpson, romberg_integration,
+            // Gaussian quadrature
+            gauss_legendre_quadrature, gauss_laguerre_quadrature, gauss_hermite_quadrature,
+        };
+    }
+
+    // ODE solvers
+    pub mod ode {
+        //! Ordinary differential equation solvers.
+        pub use crate::calculus::ode::{
+            euler_method, runge_kutta_4, adaptive_rk45,
+        };
+    }
+
+    // Flat re-exports for common operations
+    pub use crate::calculus::differentiation::central_difference;
+    pub use crate::calculus::integration::{simpsons_rule, adaptive_simpson, gauss_legendre_quadrature};
+    pub use crate::calculus::ode::{runge_kutta_4, adaptive_rk45};
 }
 
 // Re-export num-traits for convenience
