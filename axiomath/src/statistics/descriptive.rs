@@ -775,6 +775,360 @@ pub fn correlation<T: Float>(x: &[T], y: &[T]) -> Result<T, StatisticsError> {
     Ok(cov / (sd_x * sd_y))
 }
 
+// ============================================================================
+// MATRICES (Deferred from Phase 8)
+// ============================================================================
+
+/// Computes the covariance matrix for multivariate data.
+///
+/// For data with n observations and p variables, returns a p×p covariance matrix
+/// where element (i,j) is the covariance between variables i and j.
+///
+/// # Mathematical Background
+///
+/// ```text
+/// Cov(X,Y) = E[(X - μₓ)(Y - μᵧ)]
+/// ```
+///
+/// The covariance matrix Σ is symmetric and positive semi-definite.
+///
+/// # Parameters
+///
+/// - `data`: 2D data where each row is an observation and each column is a variable.
+///   Input is flattened: data[i*cols + j] = observation i, variable j
+/// - `rows`: Number of observations
+/// - `cols`: Number of variables
+/// - `sample`: If true, uses sample covariance (divides by n-1). Otherwise population (divides by n).
+///
+/// # Returns
+///
+/// A flattened p×p covariance matrix where element at (i,j) represents cov(var_i, var_j).
+///
+/// # Examples
+///
+/// ```
+/// use axiomath::statistics::descriptive::covariance_matrix;
+///
+/// // 3 observations, 2 variables
+/// let data = vec![
+///     1.0, 2.0,  // observation 1
+///     2.0, 4.0,  // observation 2
+///     3.0, 6.0,  // observation 3
+/// ];
+/// let cov_mat = covariance_matrix(&data, 3, 2, true).unwrap();
+/// // cov_mat is a 2×2 matrix (flattened to length 4)
+/// ```
+pub fn covariance_matrix<T: Float>(
+    data: &[T],
+    rows: usize,
+    cols: usize,
+    sample: bool,
+) -> Result<Vec<T>, StatisticsError> {
+    if rows == 0 || cols == 0 {
+        return Err(StatisticsError::EmptyData);
+    }
+    if data.len() != rows * cols {
+        return Err(StatisticsError::InvalidParameter(
+            "Data length must equal rows × cols".to_string(),
+        ));
+    }
+    if sample && rows < 2 {
+        return Err(StatisticsError::InsufficientData {
+            required: 2,
+            provided: rows,
+        });
+    }
+
+    // Compute means for each variable (column)
+    let means: Vec<T> = (0..cols)
+        .map(|col| {
+            let col_sum: T = (0..rows)
+                .map(|row| data[row * cols + col])
+                .fold(T::zero(), |acc, x| acc + x);
+            col_sum / T::from(rows).unwrap()
+        })
+        .collect();
+
+    // Compute covariance matrix
+    let mut cov_matrix = vec![T::zero(); cols * cols];
+    let divisor = if sample {
+        T::from(rows - 1).unwrap()
+    } else {
+        T::from(rows).unwrap()
+    };
+
+    for i in 0..cols {
+        for j in 0..cols {
+            let mut sum = T::zero();
+            for row in 0..rows {
+                let xi = data[row * cols + i] - means[i];
+                let xj = data[row * cols + j] - means[j];
+                sum = sum + xi * xj;
+            }
+            cov_matrix[i * cols + j] = sum / divisor;
+        }
+    }
+
+    Ok(cov_matrix)
+}
+
+/// Computes the correlation matrix (Pearson) for multivariate data.
+///
+/// The correlation matrix is the normalized covariance matrix where each element
+/// is divided by the product of the standard deviations.
+///
+/// # Mathematical Background
+///
+/// ```text
+/// Corr(X,Y) = Cov(X,Y) / (σₓ σᵧ)
+/// ```
+///
+/// All diagonal elements are 1, and off-diagonal elements are in [-1, 1].
+///
+/// # Parameters
+///
+/// - `data`: 2D data where each row is an observation, each column is a variable (flattened)
+/// - `rows`: Number of observations
+/// - `cols`: Number of variables
+///
+/// # Returns
+///
+/// A flattened p×p correlation matrix.
+///
+/// # Examples
+///
+/// ```
+/// use axiomath::statistics::descriptive::correlation_matrix;
+///
+/// let data = vec![
+///     1.0, 2.0,
+///     2.0, 4.0,
+///     3.0, 6.0,
+/// ];
+/// let corr_mat = correlation_matrix(&data, 3, 2).unwrap();
+/// // Diagonal elements should be 1.0
+/// ```
+pub fn correlation_matrix<T: Float>(
+    data: &[T],
+    rows: usize,
+    cols: usize,
+) -> Result<Vec<T>, StatisticsError> {
+    // Get covariance matrix
+    let cov_mat = covariance_matrix(data, rows, cols, true)?;
+
+    // Compute standard deviations for each variable
+    let std_devs: Vec<T> = (0..cols)
+        .map(|col| {
+            let col_data: Vec<T> = (0..rows)
+                .map(|row| data[row * cols + col])
+                .collect();
+            standard_deviation(&col_data, true).unwrap()
+        })
+        .collect();
+
+    // Check for zero standard deviations
+    for &sd in &std_devs {
+        if sd.is_zero() {
+            return Err(StatisticsError::InvalidParameter(
+                "Cannot compute correlation with zero standard deviation".to_string(),
+            ));
+        }
+    }
+
+    // Normalize covariance matrix to get correlation matrix
+    let mut corr_matrix = vec![T::zero(); cols * cols];
+    for i in 0..cols {
+        for j in 0..cols {
+            corr_matrix[i * cols + j] = cov_mat[i * cols + j] / (std_devs[i] * std_devs[j]);
+        }
+    }
+
+    Ok(corr_matrix)
+}
+
+/// Computes Spearman's rank correlation coefficient.
+///
+/// Spearman's ρ is a non-parametric measure of rank correlation. It assesses
+/// how well the relationship between two variables can be described using a
+/// monotonic function.
+///
+/// # Mathematical Background
+///
+/// Spearman's ρ is the Pearson correlation applied to the ranks of the data:
+/// ```text
+/// ρ = 1 - (6 Σdᵢ²) / (n(n²-1))
+/// ```
+/// where dᵢ is the difference between the ranks of corresponding values.
+///
+/// For data without ties, this simplifies to the formula above. With ties,
+/// we compute Pearson correlation on the ranks.
+///
+/// # Properties
+///
+/// - -1 ≤ ρ ≤ 1
+/// - ρ = 1: perfect monotonic increasing relationship
+/// - ρ = -1: perfect monotonic decreasing relationship
+/// - ρ = 0: no monotonic relationship
+///
+/// # Examples
+///
+/// ```
+/// use axiomath::statistics::descriptive::spearman_correlation;
+///
+/// let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+/// let y = [2.0, 4.0, 6.0, 8.0, 10.0];
+/// let rho = spearman_correlation(&x, &y).unwrap();
+/// assert!((rho - 1.0).abs() < 1e-10); // Perfect monotonic relationship
+/// ```
+///
+/// # References
+///
+/// - Spearman, C. (1904). "The proof and measurement of association between two things"
+pub fn spearman_correlation<T: Float>(x: &[T], y: &[T]) -> Result<T, StatisticsError> {
+    if x.is_empty() || y.is_empty() {
+        return Err(StatisticsError::EmptyData);
+    }
+    if x.len() != y.len() {
+        return Err(StatisticsError::InvalidParameter(
+            "Arrays must have the same length".to_string(),
+        ));
+    }
+    if x.len() < 2 {
+        return Err(StatisticsError::InsufficientData {
+            required: 2,
+            provided: x.len(),
+        });
+    }
+
+    // Convert to ranks
+    let ranks_x = compute_ranks(x);
+    let ranks_y = compute_ranks(y);
+
+    // Compute Pearson correlation on ranks
+    correlation(&ranks_x, &ranks_y)
+}
+
+/// Computes Kendall's tau correlation coefficient.
+///
+/// Kendall's τ is a non-parametric measure of ordinal association based on
+/// the number of concordant and discordant pairs.
+///
+/// # Mathematical Background
+///
+/// ```text
+/// τ = (nc - nd) / (n(n-1)/2)
+/// ```
+/// where:
+/// - nc = number of concordant pairs
+/// - nd = number of discordant pairs
+/// - n = sample size
+///
+/// A pair (xᵢ, yᵢ) and (xⱼ, yⱼ) is:
+/// - Concordant if (xᵢ - xⱼ)(yᵢ - yⱼ) > 0
+/// - Discordant if (xᵢ - xⱼ)(yᵢ - yⱼ) < 0
+///
+/// # Properties
+///
+/// - -1 ≤ τ ≤ 1
+/// - τ = 1: all pairs are concordant
+/// - τ = -1: all pairs are discordant
+/// - τ = 0: equal numbers of concordant and discordant pairs
+///
+/// # Complexity
+///
+/// - Time: O(n²) for naive implementation
+/// - Space: O(1)
+///
+/// # Examples
+///
+/// ```
+/// use axiomath::statistics::descriptive::kendall_tau;
+///
+/// let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+/// let y = [1.0, 3.0, 2.0, 5.0, 4.0];
+/// let tau = kendall_tau(&x, &y).unwrap();
+/// assert!(tau > 0.0 && tau < 1.0);
+/// ```
+///
+/// # References
+///
+/// - Kendall, M. G. (1938). "A new measure of rank correlation"
+pub fn kendall_tau<T: Float>(x: &[T], y: &[T]) -> Result<T, StatisticsError> {
+    if x.is_empty() || y.is_empty() {
+        return Err(StatisticsError::EmptyData);
+    }
+    if x.len() != y.len() {
+        return Err(StatisticsError::InvalidParameter(
+            "Arrays must have the same length".to_string(),
+        ));
+    }
+    if x.len() < 2 {
+        return Err(StatisticsError::InsufficientData {
+            required: 2,
+            provided: x.len(),
+        });
+    }
+
+    let n = x.len();
+    let mut concordant = 0;
+    let mut discordant = 0;
+
+    // Count concordant and discordant pairs
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let x_diff = x[i] - x[j];
+            let y_diff = y[i] - y[j];
+            let product = x_diff * y_diff;
+
+            if product > T::zero() {
+                concordant += 1;
+            } else if product < T::zero() {
+                discordant += 1;
+            }
+            // If product == 0, it's a tie, not counted
+        }
+    }
+
+    // τ = (nc - nd) / (n(n-1)/2)
+    let total_pairs = T::from(n * (n - 1) / 2).unwrap();
+    let tau = (T::from(concordant).unwrap() - T::from(discordant).unwrap()) / total_pairs;
+
+    Ok(tau)
+}
+
+/// Helper function to compute ranks of data.
+///
+/// Returns a vector of ranks where the smallest value gets rank 1.
+/// Handles ties by assigning average ranks.
+fn compute_ranks<T: Float>(data: &[T]) -> Vec<T> {
+    let n = data.len();
+
+    // Create index-value pairs and sort by value
+    let mut indexed: Vec<(usize, T)> = data.iter().copied().enumerate().collect();
+    indexed.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Assign ranks (1-indexed)
+    let mut ranks = vec![T::zero(); n];
+    let mut i = 0;
+    while i < n {
+        // Find range of tied values
+        let mut j = i + 1;
+        while j < n && (indexed[j].1 - indexed[i].1).abs() < T::from(1e-10).unwrap() {
+            j += 1;
+        }
+
+        // Assign average rank to all tied values
+        let avg_rank = T::from(i + 1 + j).unwrap() / T::from(2.0).unwrap();
+        for k in i..j {
+            ranks[indexed[k].0] = avg_rank;
+        }
+
+        i = j;
+    }
+
+    ranks
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -929,5 +1283,106 @@ mod tests {
         let y = [8.0, 6.0, 4.0, 2.0];
         let r = correlation(&x, &y).unwrap();
         assert_abs_diff_eq!(r, -1.0, epsilon = 1e-10);
+    }
+
+    // Matrix tests (Phase 9 deferred functions)
+    #[test]
+    fn test_covariance_matrix() {
+        // 3 observations, 2 variables
+        let data = vec![
+            1.0, 2.0,  // obs 1
+            2.0, 4.0,  // obs 2
+            3.0, 6.0,  // obs 3
+        ];
+        let cov_mat = covariance_matrix(&data, 3, 2, true).unwrap();
+
+        // Should be 2×2 matrix (4 elements)
+        assert_eq!(cov_mat.len(), 4);
+
+        // Diagonal elements (variances) should be positive
+        assert!(cov_mat[0] > 0.0); // var(X)
+        assert!(cov_mat[3] > 0.0); // var(Y)
+
+        // Matrix should be symmetric
+        assert_abs_diff_eq!(cov_mat[1], cov_mat[2], epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_correlation_matrix() {
+        let data = vec![
+            1.0, 2.0,
+            2.0, 4.0,
+            3.0, 6.0,
+        ];
+        let corr_mat = correlation_matrix(&data, 3, 2).unwrap();
+
+        // Diagonal should be 1
+        assert_abs_diff_eq!(corr_mat[0], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(corr_mat[3], 1.0, epsilon = 1e-10);
+
+        // Off-diagonal should be in [-1, 1]
+        assert!(corr_mat[1] >= -1.0 && corr_mat[1] <= 1.0);
+        assert!(corr_mat[2] >= -1.0 && corr_mat[2] <= 1.0);
+
+        // Symmetric
+        assert_abs_diff_eq!(corr_mat[1], corr_mat[2], epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_spearman_correlation_perfect() {
+        let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let y = [2.0, 4.0, 6.0, 8.0, 10.0];
+        let rho = spearman_correlation(&x, &y).unwrap();
+        assert_abs_diff_eq!(rho, 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_spearman_correlation_monotonic() {
+        // Monotonic but not linear
+        let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let y = [1.0, 4.0, 9.0, 16.0, 25.0]; // y = x²
+        let rho = spearman_correlation(&x, &y).unwrap();
+        assert_abs_diff_eq!(rho, 1.0, epsilon = 1e-10); // Perfect monotonic
+    }
+
+    #[test]
+    fn test_kendall_tau_perfect() {
+        let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let y = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let tau = kendall_tau(&x, &y).unwrap();
+        assert_abs_diff_eq!(tau, 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_kendall_tau_partial() {
+        let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let y = [1.0, 3.0, 2.0, 5.0, 4.0]; // Some inversions
+        let tau = kendall_tau(&x, &y).unwrap();
+        assert!(tau > 0.0 && tau < 1.0); // Positive but not perfect
+    }
+
+    #[test]
+    fn test_kendall_tau_negative() {
+        let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let y = [5.0, 4.0, 3.0, 2.0, 1.0]; // Perfect negative
+        let tau = kendall_tau(&x, &y).unwrap();
+        assert_abs_diff_eq!(tau, -1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_compute_ranks() {
+        let data = [3.0, 1.0, 4.0, 1.0, 5.0];
+        let ranks = compute_ranks(&data);
+
+        // Check that smallest values get smallest ranks
+        // 1.0 appears twice at positions 1,3 - should get average rank 1.5
+        // 3.0 at position 0 - should get rank 3
+        // 4.0 at position 2 - should get rank 4
+        // 5.0 at position 4 - should get rank 5
+        assert_abs_diff_eq!(ranks[1], 1.5, epsilon = 1e-10);
+        assert_abs_diff_eq!(ranks[3], 1.5, epsilon = 1e-10);
+        assert_abs_diff_eq!(ranks[0], 3.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(ranks[2], 4.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(ranks[4], 5.0, epsilon = 1e-10);
     }
 }
